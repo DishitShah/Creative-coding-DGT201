@@ -152,8 +152,6 @@
                 <button onclick="toggleFieldLines()">Toggle Field Lines</button>
                 <button onclick="clearCharges()">Clear All</button>
             </div>
-
-            
         </div>
 
         <div id="canvas-container">
@@ -179,15 +177,12 @@
         function draw() {
             background(17);
             
-            // Draw field lines first
             if (showFieldLines) {
                 drawFieldLines();
             }
 
-            // Draw force lines between charges
             drawForceLines();
             
-            // Draw charges
             for (let charge of charges) {
                 charge.display();
                 if (charge.isNew) {
@@ -221,19 +216,16 @@
                     displaySize *= this.entryAnimation;
                 }
 
-                // Glow effect
                 for (let i = 3; i > 0; i--) {
                     noFill();
                     stroke(this.color.levels[0], this.color.levels[1], this.color.levels[2], 50/i);
                     ellipse(this.x, this.y, displaySize + i*10);
                 }
 
-                // Main charge circle
                 fill(this.color);
                 noStroke();
                 ellipse(this.x, this.y, displaySize);
 
-                // Charge symbol and magnitude
                 fill(255);
                 textAlign(CENTER, CENTER);
                 textSize(16);
@@ -271,28 +263,56 @@
         }
 
         function drawForceLine(charge1, charge2, force) {
-        let midX = (charge1.x + charge2.x) / 2;
-        let midY = (charge1.y + charge2.y) / 2;
-        let angle = atan2(charge2.y - charge1.y, charge2.x - charge1.x);
-    
-        // Set line properties
-        stroke(255, 255, 0, 150);
-        strokeWeight(2);
+            let midX = (charge1.x + charge2.x) / 2;
+            let midY = (charge1.y + charge2.y) / 2;
+            let angle = atan2(charge2.y - charge1.y, charge2.x - charge1.x);
+            let forceMagnitude = force.mag();
+            
+            // Draw line between charges
+            stroke(255, 255, 0, 150);
+            strokeWeight(2);
+            line(charge1.x, charge1.y, charge2.x, charge2.y);
 
-        // Draw line between charges
-        line(charge1.x, charge1.y, charge2.x, charge2.y);
-
-        // Draw arrowhead at the midpoint
-        push();
-        translate(midX, midY);
-        rotate(angle);
-        let arrowSize = 10;
-        fill(255, 255, 0, 150);
-        noStroke();
-        triangle(0, -arrowSize / 2, 0, arrowSize / 2, arrowSize, 0);
-        pop();
-}
-
+            // Draw force value
+            push();
+            translate(midX, midY);
+            rotate(angle);
+            
+            // Draw arrow
+            fill(255, 255, 0, 150);
+            noStroke();
+            let arrowSize = 10;
+            triangle(0, -arrowSize / 2, 0, arrowSize / 2, arrowSize, 0);
+            
+            // Display force magnitude
+            rotate(-angle); // Rotate back for text
+            fill(255);
+            noStroke();
+            textAlign(CENTER, CENTER);
+            textSize(12);
+            
+            // Format force value for display
+            let displayForce;
+            if (forceMagnitude < 1e-6) {
+                displayForce = forceMagnitude.toExponential(2);
+            } else if (forceMagnitude > 1e6) {
+                displayForce = (forceMagnitude/1e9).toFixed(2) + ' GN';
+            } else if (forceMagnitude > 1e3) {
+                displayForce = (forceMagnitude/1e3).toFixed(2) + ' kN';
+            } else {
+                displayForce = forceMagnitude.toFixed(2) + ' N';
+            }
+            
+            // Create background for text
+            fill(0, 0, 0, 180);
+            rect(-30, 15, 60, 20, 5);
+            
+            // Draw force value
+            fill(255);
+            text(displayForce, 0, 25);
+            
+            pop();
+        }
 
         function calculateForceAtPoint(x, y) {
             let force = createVector(0, 0);
@@ -314,7 +334,14 @@
             if (d > 0) {
                 let direction = createVector(charge2.x - charge1.x, charge2.y - charge1.y);
                 direction.normalize();
-                let magnitude = (8.99e9 * charge1.magnitude * charge2.magnitude) / (d * d);
+                // Convert pixel distance to meters (assume 100 pixels = 1 meter)
+                let dMeters = d / 100;
+                // Calculate force using Coulomb's law
+                let magnitude = (8.99e9 * Math.abs(charge1.magnitude * charge2.magnitude)) / (dMeters * dMeters);
+                // If charges have opposite signs, force is attractive
+                if (charge1.magnitude * charge2.magnitude < 0) {
+                    magnitude *= -1;
+                }
                 direction.mult(magnitude);
                 return direction;
             }
