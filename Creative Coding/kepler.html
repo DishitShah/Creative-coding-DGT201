@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kepler's Laws Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 20px;
+            background-color: #111;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            min-height: 100vh;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .info-panel {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.2);
+        }
+
+        h1 {
+            color: #4CAF50;
+            margin-top: 0;
+            font-size: 24px;
+        }
+
+        .law-info {
+            background: rgba(76, 175, 80, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+
+        .metrics {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            width: 100%;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        button.active {
+            background: #45a049;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+        }
+
+        canvas {
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="info-panel">
+            <h1>Kepler's Laws of Planetary Motion</h1>
+            
+            <div class="law-info" id="current-law">
+                <div class="law-title">First Law</div>
+                <div class="law-description">Planets move in elliptical orbits with the Sun at one focus.</div>
+            </div>
+
+            <div id="metrics" class="metrics">
+                <div id="velocity"></div>
+                <div id="area-rate"></div>
+                <div id="period"></div>
+            </div>
+
+            <div class="controls">
+                <button id="law1-btn" onclick="setLaw(1)" class="active">First Law</button>
+                <button id="law2-btn" onclick="setLaw(2)">Second Law</button>
+                <button id="law3-btn" onclick="setLaw(3)">Third Law</button>
+            </div>
+        </div>
+
+        <div id="canvas-container"></div>
+    </div>
+
+    <script>
+        let currentLaw = 1;
+        let planets = [];
+        let sun;
+        let time = 0;
+        let trailLength = 30; // Reduced trail length for smoother animation
+
+        function setup() {
+            const canvas = createCanvas(800, 600);
+            canvas.parent('canvas-container');
+            
+            sun = {
+                x: width / 2,
+                y: height / 2,
+                radius: 15
+            };
+            
+            initializePlanets();
+        }
+
+        function initializePlanets() {
+            planets = [];
+            time = 0;
+            
+            switch(currentLaw) {
+                case 1:
+                    addPlanet(150, 0.5, 0, color(255, 100, 100));
+                    break;
+                case 2:
+                    addPlanet(150, 0.7, 0, color(100, 255, 100));
+                    break;
+                case 3:
+                    addPlanet(80, 0.3, 0, color(255, 100, 100));
+                    addPlanet(130, 0.3, PI / 2, color(100, 255, 100));
+                    addPlanet(180, 0.3, PI, color(100, 100, 255));
+                    break;
+            }
+        }
+
+        function addPlanet(a, e, phase, planetColor) {
+            planets.push({
+                a: a,
+                e: e,
+                angle: phase,
+                color: planetColor,
+                trail: [],
+                period: pow(a / 50, 1.5) * 120
+            });
+        }
+
+        function calculateVelocity(planet) {
+            let r = planet.a * (1 - planet.e * planet.e) / (1 + planet.e * Math.cos(planet.angle));
+            let mu = 50000;
+            return sqrt(mu * (2 / r - 1 / planet.a));
+        }
+
+        function draw() {
+            background(17);
+            translate(sun.x, sun.y);
+            
+            // Draw sun
+            fill(255, 200, 0);
+            noStroke();
+            circle(0, 0, sun.radius * 2);
+            
+            updateAndDrawPlanets();
+            
+            time += 1 / 60;
+        }
+
+        function updateAndDrawPlanets() {
+            planets.forEach((planet, index) => {
+                let velocity = calculateVelocity(planet);
+                
+                let r = planet.a * (1 - planet.e * planet.e) / (1 + planet.e * Math.cos(planet.angle));
+                let angleChange = (velocity / r) * (1 / 60);
+                planet.angle += angleChange;
+                
+                let x = r * Math.cos(planet.angle);
+                let y = r * Math.sin(planet.angle);
+                
+                // Update trail
+                planet.trail.push({x, y});
+                if (planet.trail.length > trailLength) {
+                    planet.trail.shift();
+                }
+                
+                // Draw orbit
+                noFill();
+                stroke(planet.color);
+                strokeWeight(1);
+                beginShape();
+                for (let theta = 0; theta < TWO_PI; theta += 0.1) {
+                    let r = planet.a * (1 - planet.e * planet.e) / (1 + planet.e * Math.cos(theta));
+                    vertex(r * Math.cos(theta), r * Math.sin(theta));
+                }
+                endShape(CLOSE);
+                
+                // For Second Law, draw filled area between trail and sun
+                if (currentLaw === 2) {
+                    noStroke();
+                    fill(planet.color.levels[0], planet.color.levels[1], planet.color.levels[2], 80);
+                    beginShape();
+                    vertex(0, 0); // Start at sun
+                    // Add all trail points
+                    planet.trail.forEach(p => {
+                        vertex(p.x, p.y);
+                    });
+                    vertex(x, y); // Current position
+                    endShape(CLOSE);
+                }
+                
+                // Draw trail
+                strokeWeight(2);
+                noFill();
+                stroke(planet.color);
+                beginShape();
+                planet.trail.forEach(p => vertex(p.x, p.y));
+                vertex(x, y);
+                endShape();
+                
+                // Draw planet
+                fill(planet.color);
+                noStroke();
+                circle(x, y, 10);
+            });
+        }
+
+        function setLaw(law) {
+            currentLaw = law;
+            ['law1-btn', 'law2-btn', 'law3-btn'].forEach(id => {
+                document.getElementById(id).classList.remove('active');
+            });
+            document.getElementById(`law${law}-btn`).classList.add('active');
+            
+            document.getElementById('current-law').innerHTML = `
+                <div class="law-title">Law ${law}</div>
+                <div class="law-description">${law === 1 ? 'Planets move in elliptical orbits with the Sun at one focus.' : 
+                (law === 2 ? 'A line segment joining a planet and the Sun sweeps out equal areas during equal intervals of time.' : 
+                'The square of the period of any planet is proportional to the cube of the semi-major axis of its orbit.')}</div>
+            `;
+            initializePlanets();
+        }
+    </script>
+</body>
+</html>
